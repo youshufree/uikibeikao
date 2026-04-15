@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="专转本备考日程管理系统 - 为SHUO打造的学习追踪工具">
+<meta name="theme-color" content="#6c5ce7">
+<title>专转本 · 备考日程管理系统</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Notification -->
+<div id="notif" class="notif"></div>
+
+<!-- Confirm Dialog -->
+<div id="cfOv" class="cf-ov">
+  <div class="cf-box">
+    <h3>确认操作</h3>
+    <p id="cfMsg">确定吗？</p>
+    <div class="cf-acts">
+      <button class="btn btn-s" onclick="UI.closeConfirm()">取消</button>
+      <button class="btn btn-d" id="cfBtn">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="addOv" class="modal-ov">
+  <div class="modal">
+    <h2>📝 添加任务</h2>
+    <div class="fg">
+      <label>日期</label>
+      <input type="date" id="rDate">
+    </div>
+    <div class="fg">
+      <label>任务类型</label>
+      <select id="rType">
+        <option value="jlx">🍳 词汇（JLPT/N4/N5）</option>
+        <option value="yf">📖 语法</option>
+        <option value="yd">👂 听力</option>
+        <option value="ydx">📄 阅读</option>
+        <option value="gs">📐 高数</option>
+        <option value="zy">📚 专业课</option>
+        <option value="other">⚡ 其他</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>任务内容</label>
+      <textarea id="rContent" rows="3" placeholder="今天完成了什么？"></textarea>
+    </div>
+    <div class="fg">
+      <label>今日备注（可选）</label>
+      <textarea id="rNotes" rows="2" placeholder="整体状态如何？"></textarea>
+    </div>
+    <div class="fg">
+      <label>完成时长（小时）</label>
+      <input type="number" id="rHours" min="0" max="12" step="0.5" value="1">
+    </div>
+    <div class="fg-actions">
+      <button class="btn btn-s" onclick="UI.closeAddModal()">取消</button>
+      <button class="btn btn-p" onclick="App.saveRecord()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Daily Record Modal -->
+<div id="dailyOv" class="modal-ov">
+  <div class="modal" style="width:500px">
+    <h2>📋 每日记录</h2>
+    <div class="fg">
+      <label>日期</label>
+      <input type="date" id="dailyDate">
+    </div>
+    <div class="fg">
+      <label>每小时记录（每行一条，格式：09:00 - 做了什么）</label>
+      <textarea id="dailyTimeline" rows="10" placeholder="08:00 - 起床&#10;09:00 - 背单词50个&#10;10:00 - 高数练习&#10;11:00 - 听力训练&#10;12:00 - 午餐休息&#10;13:00 - 日语语法&#10;14:00 - 阅读练习"></textarea>
+    </div>
+    <div class="fg">
+      <label>今日备注（整体状态如何？）</label>
+      <textarea id="dailyNotes" rows="3" placeholder="今天学习状态不错，单词记得比较快..."></textarea>
+    </div>
+    <div class="fg">
+      <label>自评分数（0-100，可选）</label>
+      <input type="number" id="dailyScore" min="0" max="100" placeholder="自己打分，或者等 uiki 评价后填写">
+    </div>
+    <div class="fg">
+      <label>🤖 uiki 评价（复制粘贴我的评价）</label>
+      <textarea id="dailyAIAudit" rows="4" placeholder="uiki 的评分和建议会显示在这里..."></textarea>
+    </div>
+    <div class="fg-actions">
+      <button class="btn btn-s" onclick="UI.closeDailyModal()">取消</button>
+      <button class="btn btn-p" onclick="App.saveDailyRecord()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Weekly Report Modal -->
+<div id="wkOv" class="modal-ov">
+  <div class="modal">
+    <h2>📊 生成周报</h2>
+    <div class="fg">
+      <label>选择周次</label>
+      <input type="week" id="wkPick">
+    </div>
+    <div class="fg-actions">
+      <button class="btn btn-s" onclick="UI.closeWeeklyModal()">取消</button>
+      <button class="btn btn-p" onclick="App.generateWeekly()">生成周报</button>
+    </div>
+  </div>
+</div>
+
+<!-- App Shell -->
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="side" id="sidebar">
+    <div class="brand">
+      <div class="logo">📚</div>
+      <div>
+        <h1>备考系统</h1>
+        <small>专转本 · 日语四级</small>
+      </div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-title">导航</div>
+      <div class="nav-item on" onclick="UI.switchView('dash')">
+        <span class="ic">🏠</span>仪表盘
+      </div>
+      <div class="nav-item" onclick="UI.switchView('recs')">
+        <span class="ic">📝</span>任务记录
+        <span class="badge" id="cntBadge">0</span>
+      </div>
+      <div class="nav-item" onclick="UI.switchView('week')">
+        <span class="ic">📊</span>周报分析
+      </div>
+      <div class="nav-item" onclick="UI.switchView('daily')">
+        <span class="ic">📋</span>每日记录
+      </div>
+      <div class="nav-item" onclick="UI.switchView('cal')">
+        <span class="ic">📅</span>日历视图
+      </div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-title">操作</div>
+      <div class="nav-item" onclick="UI.switchView('sets')">
+        <span class="ic">⚙️</span>设置
+      </div>
+    </div>
+
+    <div class="side-ft">
+      <div class="side-stats">
+        <div class="side-stat"><b id="sf1">0</b><small>总学习</small></div>
+        <div class="side-stat"><b id="sf2">0</b><small>连续天数</small></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- ===== Dashboard ===== -->
+    <div id="vDash" class="view on">
+      <div class="pg-hd">
+        <div>
+          <h2>仪表盘</h2>
+          <div class="sub" id="todayStr"></div>
+        </div>
+        <div>
+          <button class="btn btn-s" onclick="UI.openDailyModal()">📋 记录今日</button>
+          <button class="btn btn-p" onclick="UI.openAddModal()">➕ 添加任务</button>
+        </div>
+      </div>
+
+      <!-- 阶段进度 -->
+      <div class="phase-bar">
+        <h3>📍 当前阶段：<span id="currentPhase">日语四级攻坚</span></h3>
+        <div class="phases">
+          <div class="phase done" data-phase="1">
+            <div class="phase-dot">✓</div>
+            <div class="phase-info">
+              <div class="phase-name">日语四级攻坚</div>
+              <div class="phase-time">4月 - 6月中旬</div>
+            </div>
+          </div>
+          <div class="phase-line"></div>
+          <div class="phase" data-phase="2">
+            <div class="phase-dot">2</div>
+            <div class="phase-info">
+              <div class="phase-name">高数+专业课</div>
+              <div class="phase-time">6月 - 9月</div>
+            </div>
+          </div>
+          <div class="phase-line"></div>
+          <div class="phase" data-phase="3">
+            <div class="phase-dot">3</div>
+            <div class="phase-info">
+              <div class="phase-name">强化冲刺</div>
+              <div class="phase-time">10月 - 12月</div>
+            </div>
+          </div>
+          <div class="phase-line"></div>
+          <div class="phase" data-phase="4">
+            <div class="phase-dot">4</div>
+            <div class="phase-info">
+              <div class="phase-name">冲刺模拟</div>
+              <div class="phase-time">1月 - 3月</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 统计数据 -->
+      <div class="stats">
+        <div class="stat" id="todayScoreStat" style="display:none">
+          <div class="si" style="background:rgba(108,92,231,.12);color:var(--ac2)">⭐</div>
+          <b id="todayScore">--</b><span>今日评分</span>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:rgba(108,92,231,.12);color:var(--ac2)">📅</div>
+          <b id="s1">0</b><span>总记录天数</span>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:rgba(0,184,148,.12);color:var(--g)">⏱️</div>
+          <b id="s2">0</b><span>总学习小时</span>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:rgba(253,203,110,.12);color:var(--y)">🔥</div>
+          <b id="s3">0</b><span>连续记录</span>
+        </div>
+        <div class="stat">
+          <div class="si" style="background:rgba(225,112,85,.12);color:var(--o)">🏆</div>
+          <b id="s4">0</b><span>本周小时</span>
+        </div>
+      </div>
+
+      <!-- 考试倒计时 & 今日任务 -->
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h">
+            <h3>⏰ 考试倒计时</h3>
+          </div>
+          <div class="card-b">
+            <div class="countdown">
+              <div class="cd-item">
+                <b id="cdDays">--</b>
+                <small>天</small>
+              </div>
+              <div class="cd-item">
+                <b id="cdHours">--</b>
+                <small>时</small>
+              </div>
+              <div class="cd-item">
+                <b id="cdMins">--</b>
+                <small>分</small>
+              </div>
+            </div>
+            <div class="cd-label">距日语四级考试（6月）</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <h3>📝 今日任务</h3>
+            <span style="font-size:11px;color:var(--t3)">点击完成任务</span>
+          </div>
+          <div class="card-b">
+            <div class="task-list" id="todayTasks">
+              <div class="task-empty">暂无任务，添加一个吧～</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 日历概览 -->
+      <div class="card">
+        <div class="card-h">
+          <h3>📅 本月日历</h3>
+          <span style="font-size:11px;color:var(--t3)" id="calLbl"></span>
+        </div>
+        <div class="card-b">
+          <div class="cal" id="miniCal"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== All Records ===== -->
+    <div id="vRecs" class="view">
+      <div class="pg-hd">
+        <div>
+          <h2>任务记录</h2>
+          <div class="sub">共 <span id="totalTxt">0</span> 条</div>
+        </div>
+        <div>
+          <button class="btn btn-s" onclick="App.exportData()">📤 导出</button>
+          <button class="btn btn-p" onclick="UI.openAddModal()">➕ 添加</button>
+        </div>
+      </div>
+      <div class="rlist" id="allList" style="max-height:none"></div>
+    </div>
+
+    <!-- ===== Record Detail ===== -->
+    <div id="vDetail" class="view">
+      <div class="dt-hd">
+        <button class="back" onclick="UI.switchView('recs')">←</button>
+        <div class="dt-info">
+          <h2 id="dtDate"></h2>
+          <div class="meta" id="dtMeta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-d" onclick="App.deleteRecord()">🗑️</button>
+        </div>
+      </div>
+      <div class="rcard">
+        <h4>📋 任务详情</h4>
+        <div class="tl" id="dtTl"></div>
+      </div>
+      <div class="rcard">
+        <h4>📌 备注</h4>
+        <div class="ana-t" id="dtNotes"></div>
+      </div>
+    </div>
+
+    <!-- ===== Daily Record ===== -->
+    <div id="vDaily" class="view">
+      <div class="pg-hd">
+        <div>
+          <h2>每日记录</h2>
+          <div class="sub">每日学习时间线 + 自评</div>
+        </div>
+        <div>
+          <button class="btn btn-p" onclick="UI.openDailyModal()">📝 记录今日</button>
+        </div>
+      </div>
+      <div id="dailyList" class="rlist"></div>
+    </div>
+
+    <!-- ===== Daily Detail ===== -->
+    <div id="vDailyDetail" class="view">
+      <div class="dt-hd">
+        <button class="back" onclick="UI.switchView('daily')">←</button>
+        <div class="dt-info">
+          <h2 id="ddDate"></h2>
+          <div class="meta" id="ddMeta"></div>
+        </div>
+        <div class="score-badge" id="ddScore"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-d" onclick="App.deleteDailyRecord()">🗑️</button>
+        </div>
+      </div>
+      <div class="rcard">
+        <h4>⏰ 时间线</h4>
+        <div class="tl" id="ddTl"></div>
+      </div>
+      <div class="rcard">
+        <h4>📌 备注</h4>
+        <div class="ana-t" id="ddNotes"></div>
+      </div>
+      <div class="rcard">
+        <h4>🤖 uiki 评价</h4>
+        <div id="ddAiAudit" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ===== Weekly Report ===== -->
+    <div id="vWeek" class="view">
+      <div class="pg-hd">
+        <div>
+          <h2>周报分析</h2>
+          <div class="sub">每周学习回顾</div>
+        </div>
+        <div>
+          <button class="btn btn-p" onclick="UI.openWeeklyModal()">📊 生成周报</button>
+        </div>
+      </div>
+      <div id="wkContent"></div>
+      <div id="wkList"></div>
+    </div>
+
+    <!-- ===== Calendar View ===== -->
+    <div id="vCal" class="view">
+      <div class="pg-hd">
+        <div>
+          <h2>日历视图</h2>
+          <div class="sub" id="calVm"></div>
+        </div>
+        <div>
+          <button class="btn btn-s" onclick="App.changeCalendar(-1)">←</button>
+          <button class="btn btn-s" onclick="App.changeCalendar(1)">→</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-b" style="padding:22px">
+          <div class="cal" id="fullCal" style="gap:5px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Settings ===== -->
+    <div id="vSets" class="view">
+      <div class="pg-hd">
+        <div>
+          <h2>设置</h2>
+          <div class="sub">数据管理</div>
+        </div>
+      </div>
+      <div class="set-sec">
+        <h3>📊 数据管理</h3>
+        <div class="set-row">
+          <div>
+            <div class="set-nm">导出所有数据</div>
+            <div class="set-ds">导出为 JSON 文件</div>
+          </div>
+          <button class="btn btn-s" onclick="App.exportData()">📤 导出</button>
+        </div>
+        <div class="set-row">
+          <div>
+            <div class="set-nm">导入数据</div>
+            <div class="set-ds">从 JSON 文件导入</div>
+          </div>
+          <button class="btn btn-s" onclick="App.importData()">📥 导入</button>
+        </div>
+        <div class="set-row">
+          <div>
+            <div class="set-nm">清除所有数据</div>
+            <div class="set-ds">永久删除，不可恢复</div>
+          </div>
+          <button class="btn btn-d" onclick="App.clearAllConfirm()">🗑️ 清除</button>
+        </div>
+      </div>
+      <div class="set-sec">
+        <h3>ℹ️ 关于</h3>
+        <div class="ana-t">
+          <p><strong>专转本 · 备考日程管理系统</strong></p>
+          <p>为 SHUO 打造的学习追踪系统 📚</p>
+          <p>基于专转本战略分析设计，四阶段循序渐进</p>
+          <p style="margin-top:10px;color:var(--ac2)">v1.0 · Made with ❤️</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- JS Modules -->
+<script src="js/storage.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/weekly.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
